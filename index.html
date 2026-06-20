@@ -163,6 +163,12 @@
   .pk.neg.sel{background:var(--neg);border-color:var(--neg);color:#fff}
   .pk.card.sel{background:var(--gold);border-color:var(--gold);color:#fff}
   .pk.nosol.sel{background:var(--nosol);border-color:var(--nosol);color:#fff}
+  .pill.done{background:#EEF1EF;color:var(--text);display:inline-flex;align-items:center;text-transform:none;letter-spacing:normal;font-weight:700;font-size:10.5px}
+  .pill.done i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+  .confirmrow{display:flex;gap:8px;margin-top:11px}
+  .confirmbtn{flex:1;background:var(--brand);color:#fff;padding:12px;border-radius:10px;font-weight:700;font-size:14px}
+  .clrbtn{flex:0 0 auto;background:#fff;border:1px solid var(--line);color:var(--muted);padding:12px 16px;border-radius:10px;font-weight:700;font-size:13px}
+  .lpopen{display:block;width:100%;margin-top:7px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;font-weight:600;font-size:12px;color:var(--ink)}
   .lpbtns{display:flex;gap:6px;margin-top:9px}
   .popbtn{flex:1;padding:9px;border-radius:8px;font-weight:700;font-size:12.5px}
   .popbtn.nav{background:#fff;border:1.5px solid var(--brand);color:var(--brand)}
@@ -207,6 +213,8 @@
       <div><i style="background:var(--neg)"></i>Negative</div>
       <div><i style="background:var(--gold)"></i>Left card</div>
       <div><i style="background:var(--nosol)"></i>No solicit</div>
+      <div><i style="background:#1F6FEB"></i>Left sign</div>
+      <div><i style="background:#7A4FB0"></i>Left literature</div>
     </div>
   </div>
   <div id="dash"></div>
@@ -234,9 +242,15 @@
 <script>
 const STOPS=JSON.parse(document.getElementById('data').textContent);
 const CHUNKS=JSON.parse(document.getElementById('chunks').textContent);
-const LBL={pos:'Contacted · Positive',neg:'Contacted · Negative',card:'Left Push Card',nosol:'No Solicitation'};
-const SHORT={pos:'Positive',neg:'Negative',card:'Left card',nosol:'No solicit'};
-const MCOLOR={pos:'#157F3B',neg:'#C23B2B',card:'#BE810C',nosol:'#48586A',none:'#9aa6ad'};
+const LBL={pos:'Contacted · Positive',neg:'Contacted · Negative',card:'Left Push Card',nosol:'No Solicitation',sign:'Left Sign',lit:'Left Literature'};
+const SHORT={pos:'Positive',neg:'Negative',card:'Left card',nosol:'No solicit',sign:'Sign',lit:'Literature'};
+const MCOLOR={pos:'#157F3B',neg:'#C23B2B',card:'#BE810C',nosol:'#48586A',sign:'#1F6FEB',lit:'#7A4FB0',none:'#9aa6ad'};
+const ORDER=['pos','neg','card','lit','sign','nosol'];
+function canon(arr){ return ORDER.filter(k=>arr.includes(k)); }
+function primaryOf(arr){ for(const k of ORDER) if(arr.includes(k)) return k; return ''; }
+function dotsHtml(arr){ return arr.map(k=>`<i style="background:${MCOLOR[k]}"></i>`).join(''); }
+function labelOf(arr){ return arr.length===1?SHORT[arr[0]]:arr.length+' marks'; }
+function wpStyle(arr){ const p=primaryOf(arr); return p?` style="border-color:${MCOLOR[p]};color:${MCOLOR[p]}"`:''; }
 const byId={}; STOPS.forEach(s=>byId[s.id]=s);
 const CH_STOPS={}; STOPS.forEach(s=>{(CH_STOPS[s.ch]=CH_STOPS[s.ch]||[]).push(s.id);});
 STOPS.forEach(s=>{ s._q=(s.a+' '+s.s+' '+s.v.map(v=>v[0]).join(' ')).toLowerCase(); });
@@ -292,16 +306,16 @@ async function flushPending(){
 }
 
 /* ---------- marking ---------- */
-function mark(id,st,note){
-  const has = st || (note&&note.length);
-  if(has) state[id]={st:st||'',note:note||'',walker,ts:Date.now()};
+function mark(id,list,note){
+  const csv=canon(list).join(',');
+  const has = csv || (note&&note.length);
+  if(has) state[id]={st:csv,note:note||'',walker,ts:Date.now()};
   else delete state[id];
   const el=rowEl(id); if(el) refreshRow(el,byId[id]);
-  if(markers[id]) markers[id].setStyle({fillColor:MCOLOR[st||'none']});
+  if(markers[id]) markers[id].setStyle({fillColor:MCOLOR[primaryOf(canon(list))||'none']});
   updateProgress();
-  const m={stopId:id,status:st||'',note:note||'',walker};
+  const m={stopId:id,status:csv,note:note||'',walker};
   apiPost('/api/mark',m).then(()=>setNet(true)).catch(()=>{ setNet(false); pending.push(m); });
-  if(st) showToast(LBL[st]);
 }
 
 /* ---------- visibility / filters ---------- */
@@ -359,14 +373,14 @@ function residents(v){ const n=v.map(x=>x[0]); return n.length<=2?n.join(', '):n
 function rel(ts){ const m=Math.round((Date.now()-ts)/60000); if(m<1)return'just now'; if(m<60)return m+'m ago'; const h=Math.round(m/60); return h+'h ago'; }
 
 function makeRow(s){
-  const r=state[s.id], st=(r&&r.st)||'';
-  const el=document.createElement('div'); el.className='stop'; el.dataset.id=s.id; if(st)el.dataset.st=st;
-  const pill=st?`<span class="pill ${st}">${SHORT[st]}</span>`:`<span class="pill none">Open</span>`;
+  const r=state[s.id], list=(r&&r.st)?r.st.split(','):[];
+  const el=document.createElement('div'); el.className='stop'; el.dataset.id=s.id;
+  const pill=list.length?`<span class="pill done">${dotsHtml(list)}${labelOf(list)}</span>`:`<span class="pill none">Open</span>`;
   const t=tileXY(s.lat,s.lon);
   const party=(s.v[0]&&s.v[0][1])?' · '+s.v[0][1]:'';
   const byline=(r&&r.walker)?` · <span class="by">${r.walker} ${rel(r.ts)}</span>`:'';
   el.innerHTML=`
-    <div class="spine"><span class="wp">${s.id}</span></div>
+    <div class="spine"><span class="wp"${wpStyle(list)}>${s.id}</span></div>
     <div class="mini" title="Open in Google Maps"><div class="thumb" data-x="${t.x}" data-y="${t.y}"><span class="pin" style="left:${t.px}px;top:${t.py}px"></span></div></div>
     <div class="body">
       <div class="row1"><span class="addr">${s.a}</span>${pill}</div>
@@ -379,35 +393,43 @@ function makeRow(s){
   tileObs.observe(el.querySelector('.thumb'));
   return el;
 }
+function paintAct(b,k,sel){
+  const dot=b.querySelector('.d');
+  if(sel){ b.classList.add('sel'); b.style.background=MCOLOR[k]; b.style.borderColor=MCOLOR[k]; b.style.color='#fff'; if(dot)dot.style.background='#fff'; }
+  else { b.classList.remove('sel'); b.style.background=''; b.style.borderColor=''; b.style.color=''; if(dot)dot.style.background=MCOLOR[k]; }
+}
 function buildDetail(el,s){
   const d=el.querySelector('.detail'); if(d.dataset.b)return; d.dataset.b='1';
-  const r=state[s.id], st=(r&&r.st)||'', note=(r&&r.note)||'';
+  const r=state[s.id], list=(r&&r.st)?r.st.split(','):[], note=(r&&r.note)||'';
+  d._sel=new Set(list);
   const voters=s.v.map(v=>{const ph=v[2]?`<a class="vphone" href="tel:${v[2].replace(/[^0-9]/g,'')}">${v[2]}</a>`:'';
     return `<div class="voter"><span class="vname">${v[0]}</span><span class="vparty">${v[1]}</span>${ph}</div>`;}).join('');
-  const acts=['pos','neg','card','nosol'].map(k=>`<button class="act ${k===st?'sel':''}" data-k="${k}"><span class="d"></span>${LBL[k]}</button>`).join('');
+  const acts=ORDER.map(k=>`<button class="act" data-k="${k}"><span class="d"></span>${LBL[k]}</button>`).join('');
   d.innerHTML=`${voters}<div class="acts">${acts}</div>
-    <a class="navlink" target="_blank" rel="noopener" href="${gmapsTo(s)}">\u25B8 Navigate here in Google Maps</a>
     <textarea class="note" placeholder="Notes (optional)">${note}</textarea>
-    <button class="clearbtn" ${st?'':'style="display:none"'}>Clear status</button>`;
-  d.querySelectorAll('.act').forEach(b=>b.addEventListener('click',()=>{
-    const cur=(state[s.id]||{}).st; const nk=b.dataset.k===cur?'':b.dataset.k;
-    mark(s.id,nk,(state[s.id]||{}).note||''); rebuildDetail(el,s);
-  }));
-  d.querySelector('.note').addEventListener('input',e=>{ mark(s.id,(state[s.id]||{}).st||'',e.target.value); });
-  d.querySelector('.clearbtn').addEventListener('click',()=>{ mark(s.id,'',''); rebuildDetail(el,s); });
+    <div class="confirmrow"><button class="confirmbtn" data-confirm>Confirm</button><button class="clrbtn" data-clear>Clear</button></div>
+    <a class="navlink" target="_blank" rel="noopener" href="${gmapsTo(s)}">▸ Navigate here in Google Maps</a>`;
+  d.querySelectorAll('.act').forEach(b=>{ const k=b.dataset.k; paintAct(b,k,d._sel.has(k));
+    b.addEventListener('click',()=>{ if(d._sel.has(k))d._sel.delete(k); else d._sel.add(k); paintAct(b,k,d._sel.has(k)); });
+  });
+  d.querySelector('[data-confirm]').addEventListener('click',()=>{ mark(s.id,[...d._sel], d.querySelector('.note').value); showToast('Saved'); });
+  d.querySelector('[data-clear]').addEventListener('click',()=>{ d._sel.clear(); mark(s.id,[], d.querySelector('.note').value); });
 }
 function rebuildDetail(el,s){ const d=el.querySelector('.detail'); d.dataset.b=''; d.innerHTML=''; buildDetail(el,s); }
 function toggle(el,s){ if(el.classList.contains('open'))el.classList.remove('open'); else {buildDetail(el,s);el.classList.add('open');} }
 function refreshRow(el,s){
-  const r=state[s.id], st=(r&&r.st)||'';
-  if(st)el.dataset.st=st; else el.removeAttribute('data-st');
-  const pill=el.querySelector('.pill'); pill.className='pill '+(st||'none'); pill.textContent=st?SHORT[st]:'Open';
+  const r=state[s.id], list=(r&&r.st)?r.st.split(','):[];
+  const wp=el.querySelector('.wp'); const p=primaryOf(list);
+  wp.style.borderColor=p?MCOLOR[p]:''; wp.style.color=p?MCOLOR[p]:'';
+  const pill=el.querySelector('.pill');
+  if(list.length){ pill.className='pill done'; pill.innerHTML=dotsHtml(list)+labelOf(list); }
+  else { pill.className='pill none'; pill.textContent='Open'; }
   const sub=el.querySelector('.sub');
   const party=(s.v[0]&&s.v[0][1])?' · '+s.v[0][1]:'';
   const byline=(r&&r.walker)?` · <span class="by">${r.walker} ${rel(r.ts)}</span>`:'';
   sub.innerHTML=`${s.c} · Pct ${s.p}${party}${byline}`;
   const d=el.querySelector('.detail'); if(d.dataset.b) rebuildDetail(el,s);
-  if(todoOnly && st && view==='walk'){ el.style.display='none'; }
+  if(todoOnly && list.length && view==='walk'){ el.style.display='none'; }
 }
 
 /* ---------- areas ---------- */
@@ -466,36 +488,41 @@ function initMap(){
 }
 const GENDER={M:'Male',F:'Female'};
 function popupHtml(s){
-  const r=state[s.id], st=(r&&r.st)||'';
+  const r=state[s.id], list=(r&&r.st)?r.st.split(','):[];
   const voters=s.v.map(v=>{
     const g=GENDER[v[3]]?' · '+GENDER[v[3]]:'';
     const ph=v[2]?' · <a href="tel:'+v[2].replace(/[^0-9]/g,'')+'">'+v[2]+'</a>':'';
     return `<div class="lpv"><b>${v[0]}</b><div class="lpm">${v[1]}${g}${ph}</div></div>`;
   }).join('');
-  const status= st?`<span class="lpst ${st}">${SHORT[st]}${r.walker?' · '+r.walker+' '+rel(r.ts):''}</span>`:'';
-  const keys=[['pos','Positive'],['neg','Negative'],['card','Left card'],['nosol','No solicit']];
-  const acts=keys.map(([k,l])=>`<button class="pk ${k} ${k===st?'sel':''}" data-k="${k}">${l}</button>`).join('');
+  const status= list.length?`<span class="lpst" style="background:${MCOLOR[primaryOf(list)]}">${list.map(k=>SHORT[k]).join(', ')}${r.walker?' · '+r.walker+' '+rel(r.ts):''}</span>`:'';
+  const acts=ORDER.map(k=>`<button class="pk" data-k="${k}">${SHORT[k]}</button>`).join('');
   return `<div class="lpop"><div class="lpa">#${s.id} · ${s.a}</div>
     <div class="lpc">${s.c} · Pct ${s.p}</div>${status}${voters}
     <div class="lpacts">${acts}</div>
-    <div class="lpbtns"><button class="popbtn nav" data-nav>Navigate</button><button class="popbtn open" data-open>Open in list</button></div></div>`;
+    <div class="lpbtns"><button class="popbtn nav" data-nav>Navigate</button><button class="popbtn open" data-confirm>Confirm</button></div>
+    <button class="lpopen" data-open>Open in list</button></div>`;
 }
+function paintPk(b,k,sel){ if(sel){b.classList.add('sel');b.style.background=MCOLOR[k];b.style.borderColor=MCOLOR[k];b.style.color='#fff';} else {b.classList.remove('sel');b.style.background='';b.style.borderColor='';b.style.color='';} }
 function wirePopup(n,s,m){
   if(!n) return;
+  const r=state[s.id]; if(!n._sel) n._sel=new Set((r&&r.st)?r.st.split(','):[]);
   const nav=n.querySelector('[data-nav]'); if(nav) nav.onclick=()=>window.open(gmapsTo(s),'_blank');
   const op=n.querySelector('[data-open]'); if(op) op.onclick=()=>{ pendingOpen=s.id; m.closePopup(); switchView('walk'); renderList(); };
-  n.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{
-    const cur=(state[s.id]||{}).st, nk=(b.dataset.k===cur)?'':b.dataset.k;
-    mark(s.id,nk,(state[s.id]||{}).note||'');
-    m.setPopupContent(popupHtml(s));
-    wirePopup(m.getPopup().getElement(), s, m);
+  n.querySelectorAll('.pk').forEach(b=>{ const k=b.dataset.k; paintPk(b,k,n._sel.has(k));
+    b.onclick=()=>{ if(n._sel.has(k))n._sel.delete(k); else n._sel.add(k); paintPk(b,k,n._sel.has(k)); };
   });
+  const cf=n.querySelector('[data-confirm]'); if(cf) cf.onclick=()=>{
+    mark(s.id,[...n._sel]); const sel=new Set([...n._sel]);
+    m.setPopupContent(popupHtml(s));
+    const nn=m.getPopup().getElement(); if(nn){ nn._sel=sel; wirePopup(nn,s,m); }
+    showToast('Saved');
+  };
 }
 function refreshMarkers(){
   layer.clearLayers(); markers={};
-  visible().forEach(s=>{ const st=(state[s.id]&&state[s.id].st)||'none';
-    const m=L.circleMarker([s.lat,s.lon],{radius:6,weight:1.5,color:'#fff',fillColor:MCOLOR[st],fillOpacity:.95});
-    m.bindPopup(()=>popupHtml(s),{maxWidth:280,minWidth:210});
+  visible().forEach(s=>{ const list=(state[s.id]&&state[s.id].st)?state[s.id].st.split(','):[];
+    const m=L.circleMarker([s.lat,s.lon],{radius:6,weight:1.5,color:'#fff',fillColor:MCOLOR[primaryOf(list)||'none'],fillOpacity:.95});
+    m.bindPopup(()=>popupHtml(s),{maxWidth:280,minWidth:210,maxHeight:330,autoPan:true});
     m.on('popupopen',e=>wirePopup(e.popup.getElement(), s, m));
     m.addTo(layer); markers[s.id]=m; });
 }
@@ -504,7 +531,7 @@ function refreshMarkers(){
 function renderDash(){
   const el=document.getElementById('dash');
   const done=STOPS.filter(s=>state[s.id]&&state[s.id].st);
-  const cnt={pos:0,neg:0,card:0,nosol:0}; done.forEach(s=>cnt[state[s.id].st]++);
+  const cnt={pos:0,neg:0,card:0,nosol:0,sign:0,lit:0}; done.forEach(s=>state[s.id].st.split(',').forEach(k=>{ if(k in cnt) cnt[k]++; }));
   const byP={}; STOPS.forEach(s=>{(byP[s.p]=byP[s.p]||{t:0,d:0}).t++; if(state[s.id]&&state[s.id].st)byP[s.p].d++;});
   const byW={}; done.forEach(s=>{const w=state[s.id].walker||'(unknown)'; byW[w]=(byW[w]||0)+1;});
   const activeWalkers=new Set([...Object.keys(byW),...Object.values(claims).map(c=>c.walker)].filter(Boolean));
@@ -518,7 +545,9 @@ function renderDash(){
       <div class="kpi"><div class="n">${STOPS.length-done.length}</div><div class="l">remaining</div></div>
       <div class="kpi"><div class="n" style="color:var(--pos)">${cnt.pos}</div><div class="l">positive</div></div>
       <div class="kpi"><div class="n" style="color:var(--neg)">${cnt.neg}</div><div class="l">negative</div></div>
-      <div class="kpi"><div class="n" style="color:var(--gold)">${cnt.card}</div><div class="l">left card</div></div>
+      <div class="kpi"><div class="n" style="color:${MCOLOR.card}">${cnt.card}</div><div class="l">left card</div></div>
+      <div class="kpi"><div class="n" style="color:${MCOLOR.sign}">${cnt.sign}</div><div class="l">left sign</div></div>
+      <div class="kpi"><div class="n" style="color:${MCOLOR.lit}">${cnt.lit}</div><div class="l">left literature</div></div>
       <div class="kpi"><div class="n">${activeWalkers.size}</div><div class="l">walkers active</div></div>
     </div>
     <div class="dh">Progress by precinct</div>
@@ -533,7 +562,7 @@ function exportCSV(){
   const head=['Stop','Address','City','Precinct','Status','Walker','Notes','Voters'];
   const rows=[head];
   STOPS.forEach(s=>{const r=state[s.id]; if(!r||(!r.st&&!r.note))return;
-    rows.push([s.id,s.a,s.c,s.p,r.st?LBL[r.st]:'',r.walker||'',(r.note||'').replace(/\n/g,' '),s.v.map(v=>v[0]).join('; ')]);});
+    rows.push([s.id,s.a,s.c,s.p,r.st?r.st.split(',').map(k=>LBL[k]).join('; '):'',r.walker||'',(r.note||'').replace(/\n/g,' '),s.v.map(v=>v[0]).join('; ')]);});
   if(rows.length===1){showToast('No results yet');return;}
   const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
