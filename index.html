@@ -157,6 +157,12 @@
   .lpv b{font-size:13.5px}
   .lpm{font-size:11.5px;color:var(--muted);margin-top:1px}
   .lpv a{color:var(--brand);font-weight:600;text-decoration:none}
+  .lpacts{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:8px 0 2px}
+  .pk{padding:8px 4px;border-radius:7px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:11.5px;color:var(--text)}
+  .pk.pos.sel{background:var(--pos);border-color:var(--pos);color:#fff}
+  .pk.neg.sel{background:var(--neg);border-color:var(--neg);color:#fff}
+  .pk.card.sel{background:var(--gold);border-color:var(--gold);color:#fff}
+  .pk.nosol.sel{background:var(--nosol);border-color:var(--nosol);color:#fff}
   .lpbtns{display:flex;gap:6px;margin-top:9px}
   .popbtn{flex:1;padding:9px;border-radius:8px;font-weight:700;font-size:12.5px}
   .popbtn.nav{background:#fff;border:1.5px solid var(--brand);color:var(--brand)}
@@ -238,7 +244,7 @@ let walker=localStorage.getItem('aw_walker')||'';
 let state={};       // id -> {st,note,walker,ts}
 let claims={};      // chunkId -> {walker,ts}
 let lastSync=0, online=false, pending=[];
-let view='walk', fprec='', q='', todoOnly=false, activeChunk='';
+let view='walk', fprec='', q='', todoOnly=false, activeChunk='', pendingOpen=0;
 
 /* ---------- identity ---------- */
 function setWalker(n){ walker=n.trim(); localStorage.setItem('aw_walker',walker); document.getElementById('mename').textContent=walker; }
@@ -327,6 +333,8 @@ function renderList(){
     for(;i<end;i++) frag.appendChild(makeRow(vis[i]));
     listEl.appendChild(frag);
     if(i<vis.length) requestAnimationFrame(chunk);
+    else if(pendingOpen){ const id=pendingOpen; pendingOpen=0; const el=rowEl(id);
+      if(el){ el.scrollIntoView({block:'center'}); if(!el.classList.contains('open')) toggle(el,byId[id]); } }
   })();
 }
 const MZ=16,TS=72;
@@ -464,21 +472,30 @@ function popupHtml(s){
     return `<div class="lpv"><b>${v[0]}</b><div class="lpm">${v[1]}${g}${ph}</div></div>`;
   }).join('');
   const status= st?`<span class="lpst ${st}">${SHORT[st]}${r.walker?' · '+r.walker+' '+rel(r.ts):''}</span>`:'';
+  const keys=[['pos','Positive'],['neg','Negative'],['card','Left card'],['nosol','No solicit']];
+  const acts=keys.map(([k,l])=>`<button class="pk ${k} ${k===st?'sel':''}" data-k="${k}">${l}</button>`).join('');
   return `<div class="lpop"><div class="lpa">#${s.id} · ${s.a}</div>
     <div class="lpc">${s.c} · Pct ${s.p}</div>${status}${voters}
-    <div class="lpbtns"><button class="popbtn nav" data-nav>Navigate</button><button class="popbtn open" data-open>Mark</button></div></div>`;
+    <div class="lpacts">${acts}</div>
+    <div class="lpbtns"><button class="popbtn nav" data-nav>Navigate</button><button class="popbtn open" data-open>Open in list</button></div></div>`;
+}
+function wirePopup(n,s,m){
+  if(!n) return;
+  const nav=n.querySelector('[data-nav]'); if(nav) nav.onclick=()=>window.open(gmapsTo(s),'_blank');
+  const op=n.querySelector('[data-open]'); if(op) op.onclick=()=>{ pendingOpen=s.id; m.closePopup(); switchView('walk'); renderList(); };
+  n.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{
+    const cur=(state[s.id]||{}).st, nk=(b.dataset.k===cur)?'':b.dataset.k;
+    mark(s.id,nk,(state[s.id]||{}).note||'');
+    m.setPopupContent(popupHtml(s));
+    wirePopup(m.getPopup().getElement(), s, m);
+  });
 }
 function refreshMarkers(){
   layer.clearLayers(); markers={};
   visible().forEach(s=>{ const st=(state[s.id]&&state[s.id].st)||'none';
     const m=L.circleMarker([s.lat,s.lon],{radius:6,weight:1.5,color:'#fff',fillColor:MCOLOR[st],fillOpacity:.95});
     m.bindPopup(()=>popupHtml(s),{maxWidth:280,minWidth:210});
-    m.on('popupopen',e=>{
-      const n=e.popup.getElement();
-      const nav=n.querySelector('[data-nav]'); if(nav) nav.onclick=()=>window.open(gmapsTo(s),'_blank');
-      const op=n.querySelector('[data-open]'); if(op) op.onclick=()=>{m.closePopup();switchView('walk');renderList();
-        setTimeout(()=>{const el=rowEl(s.id);if(el){el.scrollIntoView({block:'center'});toggle(el,s);}},150);};
-    });
+    m.on('popupopen',e=>wirePopup(e.popup.getElement(), s, m));
     m.addTo(layer); markers[s.id]=m; });
 }
 
