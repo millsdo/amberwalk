@@ -189,7 +189,7 @@
 
 <div class="filters" id="filters">
   <select id="fprec"><option value="">All precincts</option></select>
-  <input id="q" placeholder="Search street or address">
+  <input id="q" placeholder="Search name, street, or address">
   <button class="chip" id="ftodo">Unknocked only</button>
 </div>
 
@@ -239,6 +239,7 @@ const SHORT={pos:'Positive',neg:'Negative',card:'Left card',nosol:'No solicit'};
 const MCOLOR={pos:'#157F3B',neg:'#C23B2B',card:'#BE810C',nosol:'#48586A',none:'#9aa6ad'};
 const byId={}; STOPS.forEach(s=>byId[s.id]=s);
 const CH_STOPS={}; STOPS.forEach(s=>{(CH_STOPS[s.ch]=CH_STOPS[s.ch]||[]).push(s.id);});
+STOPS.forEach(s=>{ s._q=(s.a+' '+s.s+' '+s.v.map(v=>v[0]).join(' ')).toLowerCase(); });
 
 let walker=localStorage.getItem('aw_walker')||'';
 let state={};       // id -> {st,note,walker,ts}
@@ -309,7 +310,7 @@ function visible(){
     if(activeChunk && s.ch!==activeChunk) return false;
     if(fprec && s.p!==fprec) return false;
     if(todoOnly && state[s.id] && state[s.id].st) return false;
-    if(q){ const t=q.toLowerCase(); if(!(s.a.toLowerCase().includes(t)||s.s.toLowerCase().includes(t))) return false; }
+    if(q && !s._q.includes(q.toLowerCase())) return false;
     return true;
   });
 }
