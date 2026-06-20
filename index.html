@@ -37,7 +37,7 @@
   .progwrap{height:5px;background:rgba(255,255,255,.14);border-radius:99px;margin:9px 0 9px}
   .progbar{height:100%;width:0;background:var(--brand);border-radius:99px;transition:width .25s}
   .tabs{display:flex}
-  .tab{flex:1;padding:10px 0;color:#9DB4AC;font-weight:600;font-size:13.5px;border-bottom:2px solid transparent;text-align:center}
+  .tab{flex:1;padding:10px 0;color:#9DB4AC;font-weight:600;font-size:12.5px;border-bottom:2px solid transparent;text-align:center}
   .tab.on{color:#fff;border-bottom-color:var(--brand)}
   .filters{background:#fff;border-bottom:1px solid var(--line);padding:9px 12px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
   .filters select,.filters input{font-size:16px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#fff;min-width:0}
@@ -134,7 +134,7 @@
   .foot .fbtn{flex:1;padding:11px;border-radius:10px;font-weight:700;font-size:14px}
   .fbtn.primary{background:var(--brand);color:#fff}
   .fbtn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
-  body.tab-map .foot,body.tab-dash .foot,body.tab-areas .foot{display:none}
+  body.tab-map .foot,body.tab-dash .foot,body.tab-areas .foot,body.tab-home .foot{display:none}
 
   .modal{position:fixed;inset:0;z-index:2000;background:rgba(21,33,43,.96);display:flex;align-items:center;justify-content:center;padding:24px}
   .card2{background:#fff;border-radius:16px;padding:24px 22px;max-width:340px;width:100%;text-align:center}
@@ -174,20 +174,37 @@
   .popbtn.nav{background:#fff;border:1.5px solid var(--brand);color:var(--brand)}
   .popbtn.open{background:var(--brand);color:#fff}
   .leaflet-popup-content{margin:11px 13px}
+  .refb{color:#cfe0d9;font-size:17px;line-height:1;padding:2px 5px;border-radius:6px}
+  .refb.spin{animation:awspin .55s linear}
+  @keyframes awspin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  #home{display:none;padding:16px 14px 24px}
+  .hhead{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+  .hgreet{font-size:19px;font-weight:800}
+  .hstat{font-size:12.5px;color:var(--muted);margin-top:3px;font-family:var(--mono)}
+  .hbar{height:7px;background:#EEF1EF;border-radius:99px;margin-top:10px;overflow:hidden}
+  .hbar i{display:block;height:100%;background:var(--brand)}
+  .hresume{display:block;width:100%;background:var(--brand);color:#fff;border-radius:12px;padding:13px;font-weight:700;font-size:14px;margin-bottom:12px}
+  .hgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .hcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:118px}
+  .hcard:active{background:#F4F6F5}
+  .hic{font-size:25px}
+  .ht{font-weight:750;font-size:15.5px;margin-top:5px}
+  .hd{font-size:11.5px;color:var(--muted);line-height:1.3}
 </style>
 </head>
 <body>
 <header>
   <div class="htop">
     <div class="brand"><small>Live canvass · west → east</small>AmberWalk</div>
-    <div class="me"><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
+    <div class="me"><button id="refreshbtn" class="refb" title="Refresh">↻</button><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
   </div>
   <div class="progwrap"><div class="progbar" id="prog"></div></div>
   <div class="tabs">
-    <button class="tab on" data-view="walk">My Walk</button>
+    <button class="tab on" data-view="home">Home</button>
+    <button class="tab" data-view="walk">My Walk</button>
     <button class="tab" data-view="areas">Areas</button>
     <button class="tab" data-view="map">Map</button>
-    <button class="tab" data-view="dash">Dashboard</button>
+    <button class="tab" data-view="dash">Dash</button>
   </div>
 </header>
 
@@ -200,6 +217,7 @@
 </div>
 
 <main>
+  <div id="home"></div>
   <div id="walkview">
     <div id="list"></div>
     <div class="attrib">Map tiles &copy; Esri, CARTO, OpenStreetMap contributors</div>
@@ -286,6 +304,7 @@ async function pull(full){
     d.statuses.forEach(applyStatus);
     claims={}; d.claims.forEach(c=>claims[c.chunk_id]={walker:c.walker,ts:Number(c.ts)});
     updateProgress();
+    if(view==='home') renderHome();
     if(view==='areas') renderAreas();
     if(view==='dash') renderDash();
     if(view==='map'&&map) refreshMarkers();
@@ -558,6 +577,28 @@ function renderDash(){
     <button class="fbtn primary" id="exportall" style="width:100%;padding:12px;border-radius:10px">Export all results (CSV)</button>`;
   el.querySelector('#exportall').addEventListener('click',exportCSV);
 }
+function renderHome(){
+  const el=document.getElementById('home');
+  const done=STOPS.filter(s=>state[s.id]&&state[s.id].st).length;
+  const pct=Math.round(done/STOPS.length*100);
+  const mine=Object.entries(claims).find(([cid,c])=>c.walker===walker);
+  const resume= mine?`<button class="hresume" data-resume="${mine[0]}">Resume my area ▸</button>`:'';
+  el.innerHTML=`
+    <div class="hhead">
+      <div class="hgreet">Hi${walker?', '+walker:''}</div>
+      <div class="hstat">${done.toLocaleString()} of ${STOPS.length.toLocaleString()} doors knocked · ${pct}%</div>
+      <div class="hbar"><i style="width:${pct}%"></i></div>
+    </div>
+    ${resume}
+    <div class="hgrid">
+      <button class="hcard" data-go="walk"><div class="hic">📋</div><div class="ht">My Walk</div><div class="hd">Knock the door list, west to east</div></button>
+      <button class="hcard" data-go="areas"><div class="hic">📍</div><div class="ht">Areas</div><div class="hd">Claim a turf to walk</div></button>
+      <button class="hcard" data-go="map"><div class="hic">🗺️</div><div class="ht">Map</div><div class="hd">See doors on the map</div></button>
+      <button class="hcard" data-go="dash"><div class="hic">📊</div><div class="ht">Dashboard</div><div class="hd">Team progress & export</div></button>
+    </div>`;
+  el.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>switchView(b.dataset.go)));
+  const rb=el.querySelector('[data-resume]'); if(rb) rb.addEventListener('click',()=>openArea(rb.dataset.resume));
+}
 function exportCSV(){
   const head=['Stop','Address','City','Precinct','Status','Walker','Notes','Voters'];
   const rows=[head];
@@ -594,17 +635,25 @@ document.getElementById('ftodo').addEventListener('click',e=>{todoOnly=!todoOnly
 function switchView(v){
   view=v;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.view===v));
+  document.getElementById('home').style.display=v==='home'?'block':'none';
   document.getElementById('walkview').style.display=v==='walk'?'':'none';
   document.getElementById('filters').style.display=v==='walk'?'':'none';
   document.getElementById('areas').style.display=v==='areas'?'block':'none';
   document.getElementById('mapview').style.display=v==='map'?'block':'none';
   document.getElementById('dash').style.display=v==='dash'?'block':'none';
   document.body.className='tab-'+v;
+  if(v==='home')renderHome();
   if(v==='areas')renderAreas(); if(v==='dash')renderDash(); if(v==='map')initMap();
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchView(t.dataset.view)));
+document.getElementById('refreshbtn').addEventListener('click',async()=>{
+  const b=document.getElementById('refreshbtn'); b.classList.add('spin');
+  await pull(true);
+  setTimeout(()=>b.classList.remove('spin'),550);
+  showToast('Updated');
+});
 
-function refreshAll(){ renderList(); updateProgress(); if(view==='areas')renderAreas(); if(view==='dash')renderDash(); }
+function refreshAll(){ renderList(); updateProgress(); if(view==='home')renderHome(); if(view==='areas')renderAreas(); if(view==='dash')renderDash(); }
 
 /* ---------- toast ---------- */
 let toastT; const toastEl=document.getElementById('toast');
@@ -617,6 +666,7 @@ function showToast(m){toastEl.textContent=m;toastEl.classList.add('show');clearT
   else askName();
   await pull(true);
   renderList();
+  switchView('home');
   setInterval(pull,4000);
 })();
 </script>
