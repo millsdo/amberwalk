@@ -46,6 +46,8 @@
   .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .banner{background:#EAF6EE;border-bottom:1px solid #c9e6d4;padding:8px 14px;font-size:13px;color:#0c5e41;display:flex;justify-content:space-between;align-items:center;gap:8px}
   .banner button{color:var(--brand);font-weight:700;text-decoration:underline;font-size:13px}
+  .bnRight{display:flex;gap:14px;align-items:center;white-space:nowrap}
+  .bnOwner{color:var(--neg);font-weight:700;font-size:12px}
 
   #list{padding:4px 0 6px}
   .attrib{padding:10px 14px 90px;font-size:10.5px;color:var(--muted);text-align:center}
@@ -461,9 +463,10 @@ function renderAreas(){
     const owner=claims[c.id]&&claims[c.id].walker;
     const mine=owner&&owner===walker;
     let ownerHtml, btnHtml;
-    if(!owner){ ownerHtml=`<span class="owner free">Unclaimed</span>`; btnHtml=`<button class="btn go" data-claim="${c.id}">Claim & walk</button>`; }
-    else if(mine){ ownerHtml=`<span class="owner mine">You're walking this</span>`; btnHtml=`<button class="btn go" data-go="${c.id}">Open</button> <button class="btn out" data-release="${c.id}">Release</button>`; }
-    else { ownerHtml=`<span class="owner taken">Claimed by ${owner}</span>`; btnHtml=`<button class="btn out" data-go="${c.id}">View</button>`; }
+    const prev=`<button class="btn out" data-preview="${c.id}">Preview</button>`;
+    if(!owner){ ownerHtml=`<span class="owner free">Unclaimed</span>`; btnHtml=`${prev} <button class="btn go" data-claim="${c.id}">Claim & walk</button>`; }
+    else if(mine){ ownerHtml=`<span class="owner mine">You're walking this</span>`; btnHtml=`${prev} <button class="btn go" data-go="${c.id}">Open list</button> <button class="btn out" data-release="${c.id}">Release</button>`; }
+    else { ownerHtml=`<span class="owner taken">Claimed by ${owner}</span>`; btnHtml=`${prev}`; }
     const el=document.createElement('div'); el.className='area';
     el.innerHTML=`<h3>${c.label.split(' · ').slice(1).join(' · ')}</h3>
       <div class="meta">${c.label.split(' · ')[0]} · ${p.done}/${p.total} knocked (${pct}%)</div>
@@ -474,6 +477,7 @@ function renderAreas(){
   areasEl.querySelectorAll('[data-claim]').forEach(b=>b.addEventListener('click',()=>claimArea(b.dataset.claim)));
   areasEl.querySelectorAll('[data-release]').forEach(b=>b.addEventListener('click',()=>releaseArea(b.dataset.release)));
   areasEl.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>openArea(b.dataset.go)));
+  areasEl.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>previewArea(b.dataset.preview)));
 }
 async function claimArea(cid){
   if(!walker){ askName(); return; }
@@ -489,12 +493,22 @@ function openArea(cid){ activeChunk=cid; fprec=''; document.getElementById('fpre
   updateBanner(); switchView('walk'); renderList(); }
 function updateBanner(){
   const b=document.getElementById('areaBanner');
-  if(activeChunk){ const c=CHUNKS.find(x=>x.id===activeChunk);
-    b.innerHTML=`<span>Walking <b>${c?c.label.split(' · ').slice(1).join(' · '):activeChunk}</b></span><button id="clearArea">Show all</button>`;
+  if(activeChunk){
+    const c=CHUNKS.find(x=>x.id===activeChunk);
+    const label=c?c.label.split(' · ').slice(1).join(' · '):activeChunk;
+    const owner=claims[activeChunk]&&claims[activeChunk].walker, mine=owner===walker;
+    let mid='';
+    if(!owner) mid=`<button id="bnClaim">Claim & walk</button>`;
+    else if(!mine) mid=`<span class="bnOwner">Claimed by ${owner}</span>`;
+    const verb=(owner&&mine)?'Walking':'Viewing';
+    b.innerHTML=`<span>${verb} <b>${label}</b></span><span class="bnRight">${mid}<button id="clearArea">Show all</button></span>`;
     b.classList.remove('hidden');
-    document.getElementById('clearArea').addEventListener('click',()=>{activeChunk='';b.classList.add('hidden');renderList();});
+    document.getElementById('clearArea').onclick=()=>{activeChunk='';b.classList.add('hidden');renderList();if(view==='map'&&map)refreshMarkers();};
+    const bc=document.getElementById('bnClaim'); if(bc) bc.onclick=()=>claimArea(activeChunk);
   } else b.classList.add('hidden');
 }
+function fitActive(){ if(!map) return; const v=visible(); if(v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.15)); }
+function previewArea(cid){ activeChunk=cid; updateBanner(); switchView('map'); setTimeout(fitActive,140); }
 
 /* ---------- map ---------- */
 let map,markers={},layer;
