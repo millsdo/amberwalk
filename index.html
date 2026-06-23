@@ -518,7 +518,15 @@ let map,markers={},layer,userMarker,accCircle,locating=false,firstFix=false;
 function initMap(){
   if(map){ setTimeout(()=>map.invalidateSize(),60); refreshMarkers(); return; }
   map=L.map('map',{preferCanvas:true}).setView([35.235,-89.78],12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+  const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'});
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery &copy; Esri'});
+  const labels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
+  streets.addTo(map);
+  L.control.layers(
+    {'Streets (house outlines)':streets,'Satellite (rooftops)':sat},
+    {'Street names':labels},
+    {position:'topleft',collapsed:true}
+  ).addTo(map);
   layer=L.layerGroup().addTo(map); refreshMarkers();
   const v=visible(); if(v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.1));
   map.on('locationfound',e=>{
