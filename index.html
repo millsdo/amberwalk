@@ -117,7 +117,11 @@
   #map{position:absolute;inset:0}
   .maptools{position:absolute;z-index:600;left:10px;bottom:18px}
   .mbtn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:700;font-size:13px;box-shadow:0 1px 5px rgba(0,0,0,.2);color:var(--ink)}
-  .leg{position:absolute;z-index:600;right:10px;top:10px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px}
+  .mapsearch{position:absolute;top:0;left:0;right:0;z-index:700;display:flex;gap:6px;padding:8px 10px;background:linear-gradient(180deg,rgba(233,236,234,.97),rgba(233,236,234,0))}
+  .mapsearch input{flex:1;min-width:0;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.18)}
+  .mapsearch button{width:44px;flex:none;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:20px;line-height:1;color:var(--muted);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+  #map .leaflet-top{top:56px}
+  .leg{position:absolute;z-index:600;right:10px;top:62px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px}
   .leg div{display:flex;align-items:center;gap:6px;margin:3px 0;font-weight:600}
   .leg i{width:11px;height:11px;border-radius:50%}
   #dash{display:none;padding:14px 14px 90px}
@@ -229,6 +233,7 @@
   <div id="areas"></div>
   <div id="mapview">
     <div id="map"></div>
+    <div class="mapsearch"><input id="mapq" placeholder="Search street on the map" autocomplete="off"><button id="mapqx" title="Clear">×</button></div>
     <div class="maptools"><button class="mbtn" id="locatebtn">◎ Locate me</button></div>
     <div class="leg">
       <div><i style="background:#9aa6ad"></i>Not knocked</div>
@@ -282,7 +287,7 @@ let walker=localStorage.getItem('aw_walker')||'';
 let state={};       // id -> {st,note,walker,ts}
 let claims={};      // chunkId -> {walker,ts}
 let lastSync=0, online=false, pending=[];
-let view='walk', fprec='', q='', todoOnly=false, activeChunk='', pendingOpen=0;
+let view='walk', fprec='', q='', todoOnly=false, activeChunk='', pendingOpen=0, mapQuery='';
 
 /* ---------- identity ---------- */
 function setWalker(n){ walker=n.trim(); localStorage.setItem('aw_walker',walker); document.getElementById('mename').textContent=walker; }
@@ -578,9 +583,13 @@ function wirePopup(n,s,m){
     showToast('Saved');
   };
 }
+function mapSet(){
+  if(mapQuery){ const t=mapQuery.toLowerCase(); return STOPS.filter(s=>s._q.includes(t)); }
+  return visible();
+}
 function refreshMarkers(){
   layer.clearLayers(); markers={};
-  visible().forEach(s=>{ const list=(state[s.id]&&state[s.id].st)?state[s.id].st.split(','):[];
+  mapSet().forEach(s=>{ const list=(state[s.id]&&state[s.id].st)?state[s.id].st.split(','):[];
     const m=L.circleMarker([s.lat,s.lon],{radius:6,weight:1.5,color:'#fff',fillColor:MCOLOR[primaryOf(list)||'none'],fillOpacity:.95});
     m.bindPopup(()=>popupHtml(s),{maxWidth:280,minWidth:210,maxHeight:330,autoPan:true});
     m.on('popupopen',e=>wirePopup(e.popup.getElement(), s, m));
@@ -689,6 +698,10 @@ function switchView(v){
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchView(t.dataset.view)));
 document.getElementById('locatebtn').addEventListener('click',locateMe);
+let mqT;
+document.getElementById('mapq').addEventListener('input',e=>{ clearTimeout(mqT); mqT=setTimeout(()=>{ mapQuery=e.target.value.trim(); applyMapSearch(); },200); });
+document.getElementById('mapqx').addEventListener('click',()=>{ const i=document.getElementById('mapq'); i.value=''; mapQuery=''; applyMapSearch(); i.focus(); });
+function applyMapSearch(){ if(!map) return; refreshMarkers(); const v=mapSet(); if(mapQuery && v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.2)); if(mapQuery) showToast(v.length+' door'+(v.length===1?'':'s')+' found'); }
 document.getElementById('refreshbtn').addEventListener('click',async()=>{
   const b=document.getElementById('refreshbtn'); b.classList.add('spin');
   await pull(true);
