@@ -115,6 +115,8 @@
   /* Map + Dashboard */
   #mapview{display:none;position:absolute;left:0;right:0;bottom:0;top:0}
   #map{position:absolute;inset:0}
+  .maptools{position:absolute;z-index:600;left:10px;bottom:18px}
+  .mbtn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:700;font-size:13px;box-shadow:0 1px 5px rgba(0,0,0,.2);color:var(--ink)}
   .leg{position:absolute;z-index:600;right:10px;top:10px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px}
   .leg div{display:flex;align-items:center;gap:6px;margin:3px 0;font-weight:600}
   .leg i{width:11px;height:11px;border-radius:50%}
@@ -227,6 +229,7 @@
   <div id="areas"></div>
   <div id="mapview">
     <div id="map"></div>
+    <div class="maptools"><button class="mbtn" id="locatebtn">◎ Locate me</button></div>
     <div class="leg">
       <div><i style="background:#9aa6ad"></i>Not knocked</div>
       <div><i style="background:var(--pos)"></i>Positive</div>
@@ -511,13 +514,28 @@ function fitActive(){ if(!map) return; const v=visible(); if(v.length) map.fitBo
 function previewArea(cid){ activeChunk=cid; updateBanner(); switchView('map'); setTimeout(fitActive,140); }
 
 /* ---------- map ---------- */
-let map,markers={},layer;
+let map,markers={},layer,userMarker,accCircle,locating=false,firstFix=false;
 function initMap(){
   if(map){ setTimeout(()=>map.invalidateSize(),60); refreshMarkers(); return; }
   map=L.map('map',{preferCanvas:true}).setView([35.235,-89.78],12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
   layer=L.layerGroup().addTo(map); refreshMarkers();
   const v=visible(); if(v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.1));
+  map.on('locationfound',e=>{
+    if(!userMarker){
+      userMarker=L.circleMarker(e.latlng,{radius:8,color:'#fff',weight:3,fillColor:'#1C6BEF',fillOpacity:1}).addTo(map);
+      accCircle=L.circle(e.latlng,{radius:e.accuracy,color:'#1C6BEF',weight:1,fillColor:'#1C6BEF',fillOpacity:.12}).addTo(map);
+    } else { userMarker.setLatLng(e.latlng); accCircle.setLatLng(e.latlng).setRadius(e.accuracy); }
+    if(firstFix){ firstFix=false; map.setView(e.latlng, Math.max(map.getZoom(),16)); }
+  });
+  map.on('locationerror',()=>{ locating=false; showToast('Location unavailable — allow access in Settings'); });
+}
+function locateMe(){
+  if(!map) return;
+  if(!navigator.geolocation){ showToast('No geolocation on this device'); return; }
+  if(userMarker){ map.setView(userMarker.getLatLng(), Math.max(map.getZoom(),16)); return; }
+  showToast('Locating…'); firstFix=true; locating=true;
+  map.locate({watch:true, enableHighAccuracy:true, maximumAge:4000, timeout:15000});
 }
 const GENDER={M:'Male',F:'Female'};
 function popupHtml(s){
@@ -656,10 +674,12 @@ function switchView(v){
   document.getElementById('mapview').style.display=v==='map'?'block':'none';
   document.getElementById('dash').style.display=v==='dash'?'block':'none';
   document.body.className='tab-'+v;
+  if(v!=='map' && map && locating){ map.stopLocate(); locating=false; }
   if(v==='home')renderHome();
   if(v==='areas')renderAreas(); if(v==='dash')renderDash(); if(v==='map')initMap();
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchView(t.dataset.view)));
+document.getElementById('locatebtn').addEventListener('click',locateMe);
 document.getElementById('refreshbtn').addEventListener('click',async()=>{
   const b=document.getElementById('refreshbtn'); b.classList.add('spin');
   await pull(true);
