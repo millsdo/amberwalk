@@ -126,7 +126,6 @@
   .mapsug button:last-child{border-bottom:none}
   .mapsug button:active{background:#F1F4F2}
   .mapsug .cnt{float:right;color:var(--muted);font-size:12px;font-weight:500;font-family:var(--mono)}
-  #map .leaflet-top{top:56px}
   .leg{position:absolute;z-index:600;right:10px;top:62px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px}
   .leg div{display:flex;align-items:center;gap:6px;margin:3px 0;font-weight:600}
   .leg i{width:11px;height:11px;border-radius:50%}
@@ -209,7 +208,7 @@
 <body>
 <header>
   <div class="htop">
-    <div class="brand"><small>Live canvass · west → east · JUN22-LAYOUT</small>AmberWalk</div>
+    <div class="brand"><small>Live canvass · west → east · JUN22-CTRL</small>AmberWalk</div>
     <div class="me"><button id="refreshbtn" class="refb" title="Refresh">↻</button><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
   </div>
   <div class="progwrap"><div class="progbar" id="prog"></div></div>
@@ -538,7 +537,8 @@ function layoutMap(){
 }
 function initMap(){
   if(map){ setTimeout(()=>map.invalidateSize(),60); refreshMarkers(); return; }
-  map=L.map('map',{preferCanvas:true}).setView([35.235,-89.78],12);
+  map=L.map('map',{preferCanvas:true,zoomControl:false}).setView([35.235,-89.78],12);
+  L.control.zoom({position:'bottomright'}).addTo(map);
   const streets=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'});
   const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Imagery &copy; Esri'});
   const labels=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
@@ -546,7 +546,7 @@ function initMap(){
   L.control.layers(
     {'Streets (house outlines)':streets,'Satellite (rooftops)':sat},
     {'Street names':labels},
-    {position:'topleft',collapsed:true}
+    {position:'bottomright',collapsed:true}
   ).addTo(map);
   layer=L.layerGroup().addTo(map); refreshMarkers();
   map.on('movestart',hideSug);
