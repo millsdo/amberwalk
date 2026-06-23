@@ -312,7 +312,8 @@ async function pull(full){
     if(view==='home') renderHome();
     if(view==='areas') renderAreas();
     if(view==='dash') renderDash();
-    if(view==='map'&&map) refreshMarkers();
+    // NOTE: do NOT rebuild map markers here — that would close an open popup mid-edit.
+    // Live status changes recolor markers in place via applyStatus().
     flushPending();
   }catch(e){ setNet(false); }
 }
@@ -321,7 +322,7 @@ function applyStatus(row){
   if(!row.status && !row.note) delete state[id];
   else state[id]={st:row.status,note:row.note,walker:row.walker,ts:Number(row.ts)};
   const el=rowEl(id); if(el) refreshRow(el,byId[id]);
-  if(markers[id]) markers[id].setStyle({fillColor:MCOLOR[(state[id]&&state[id].st)||'none']});
+  if(markers[id]){ const li=(state[id]&&state[id].st)?state[id].st.split(','):[]; markers[id].setStyle({fillColor:MCOLOR[primaryOf(li)||'none']}); }
 }
 async function flushPending(){
   if(!pending.length) return; const keep=[];
