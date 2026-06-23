@@ -113,7 +113,7 @@
   .btn.out{background:#fff;border:1px solid var(--line);color:var(--ink)}
 
   /* Map + Dashboard */
-  #mapview{display:none;position:absolute;left:0;right:0;bottom:0;top:0}
+  #mapview{display:none;position:fixed;left:0;right:0;bottom:0;top:120px}
   #map{position:absolute;inset:0}
   .maptools{position:absolute;z-index:600;left:10px;bottom:18px}
   .mbtn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-weight:700;font-size:13px;box-shadow:0 1px 5px rgba(0,0,0,.2);color:var(--ink)}
@@ -209,7 +209,7 @@
 <body>
 <header>
   <div class="htop">
-    <div class="brand"><small>Live canvass · west → east · JUN22-search</small>AmberWalk</div>
+    <div class="brand"><small>Live canvass · west → east · JUN22-LAYOUT</small>AmberWalk</div>
     <div class="me"><button id="refreshbtn" class="refb" title="Refresh">↻</button><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
   </div>
   <div class="progwrap"><div class="progbar" id="prog"></div></div>
@@ -519,7 +519,7 @@ function updateBanner(){
     const verb=(owner&&mine)?'Walking':'Viewing';
     b.innerHTML=`<span>${verb} <b>${label}</b></span><span class="bnRight">${mid}<button id="clearArea">Show all</button></span>`;
     b.classList.remove('hidden');
-    document.getElementById('clearArea').onclick=()=>{activeChunk='';b.classList.add('hidden');renderList();if(view==='map'&&map)refreshMarkers();};
+    document.getElementById('clearArea').onclick=()=>{activeChunk='';b.classList.add('hidden');renderList();if(view==='map'&&map){refreshMarkers();layoutMap();}};
     const bc=document.getElementById('bnClaim'); if(bc) bc.onclick=()=>claimArea(activeChunk);
   } else b.classList.add('hidden');
 }
@@ -528,6 +528,14 @@ function previewArea(cid){ activeChunk=cid; updateBanner(); switchView('map'); s
 
 /* ---------- map ---------- */
 let map,markers={},layer,userMarker,accCircle,locating=false,firstFix=false;
+function layoutMap(){
+  const mv=document.getElementById('mapview');
+  const bn=document.getElementById('areaBanner');
+  const hdr=document.querySelector('header').getBoundingClientRect().bottom;
+  const top=(bn && !bn.classList.contains('hidden'))?bn.getBoundingClientRect().bottom:hdr;
+  mv.style.top=Math.max(0,Math.round(top))+'px';
+  if(map) map.invalidateSize();
+}
 function initMap(){
   if(map){ setTimeout(()=>map.invalidateSize(),60); refreshMarkers(); return; }
   map=L.map('map',{preferCanvas:true}).setView([35.235,-89.78],12);
@@ -703,10 +711,12 @@ function switchView(v){
   document.body.className='tab-'+v;
   if(v!=='map' && map && locating){ map.stopLocate(); locating=false; }
   if(v==='home')renderHome();
-  if(v==='areas')renderAreas(); if(v==='dash')renderDash(); if(v==='map')initMap();
+  if(v==='areas')renderAreas(); if(v==='dash')renderDash(); if(v==='map'){ initMap(); layoutMap(); }
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchView(t.dataset.view)));
 document.getElementById('locatebtn').addEventListener('click',locateMe);
+window.addEventListener('resize',()=>{ if(view==='map') layoutMap(); });
+window.addEventListener('orientationchange',()=>{ if(view==='map') setTimeout(layoutMap,250); });
 const STREETS=[...new Set(STOPS.map(s=>s.s))].sort();
 const mapqEl=document.getElementById('mapq');
 let mqT;

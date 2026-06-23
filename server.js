@@ -79,7 +79,7 @@ app.post('/api/release', async (req, res) => {
 });
 
 // --- Static app (single self-contained file) ---
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('*', (req, res) => { res.set('Cache-Control','no-cache'); res.sendFile(path.join(__dirname, 'index.html')); });
 
 const port = process.env.PORT || 3000;
 init()
