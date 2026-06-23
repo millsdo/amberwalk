@@ -120,6 +120,12 @@
   .mapsearch{position:absolute;top:0;left:0;right:0;z-index:700;display:flex;gap:6px;padding:8px 10px;background:linear-gradient(180deg,rgba(233,236,234,.97),rgba(233,236,234,0))}
   .mapsearch input{flex:1;min-width:0;font-size:16px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.18)}
   .mapsearch button{width:44px;flex:none;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:20px;line-height:1;color:var(--muted);box-shadow:0 1px 6px rgba(0,0,0,.18)}
+  .mapsug{position:absolute;top:54px;left:10px;right:10px;z-index:710;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22);overflow:hidden;display:none}
+  .mapsug.show{display:block}
+  .mapsug button{display:block;width:100%;text-align:left;padding:11px 13px;font-size:14.5px;font-weight:600;border:none;border-bottom:1px solid var(--line);background:#fff;color:var(--text)}
+  .mapsug button:last-child{border-bottom:none}
+  .mapsug button:active{background:#F1F4F2}
+  .mapsug .cnt{float:right;color:var(--muted);font-size:12px;font-weight:500;font-family:var(--mono)}
   #map .leaflet-top{top:56px}
   .leg{position:absolute;z-index:600;right:10px;top:62px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11.5px}
   .leg div{display:flex;align-items:center;gap:6px;margin:3px 0;font-weight:600}
@@ -233,7 +239,8 @@
   <div id="areas"></div>
   <div id="mapview">
     <div id="map"></div>
-    <div class="mapsearch"><input id="mapq" placeholder="Search street on the map" autocomplete="off"><button id="mapqx" title="Clear">×</button></div>
+    <div class="mapsearch"><input id="mapq" placeholder="Jump to a street…" autocomplete="off"><button id="mapqx" title="Clear">×</button></div>
+    <div id="mapsug" class="mapsug"></div>
     <div class="maptools"><button class="mbtn" id="locatebtn">◎ Locate me</button></div>
     <div class="leg">
       <div><i style="background:#9aa6ad"></i>Not knocked</div>
@@ -287,7 +294,7 @@ let walker=localStorage.getItem('aw_walker')||'';
 let state={};       // id -> {st,note,walker,ts}
 let claims={};      // chunkId -> {walker,ts}
 let lastSync=0, online=false, pending=[];
-let view='walk', fprec='', q='', todoOnly=false, activeChunk='', pendingOpen=0, mapQuery='';
+let view='walk', fprec='', q='', todoOnly=false, activeChunk='', pendingOpen=0, mapQuery='', mapStreet='';
 
 /* ---------- identity ---------- */
 function setWalker(n){ walker=n.trim(); localStorage.setItem('aw_walker',walker); document.getElementById('mename').textContent=walker; }
@@ -534,6 +541,7 @@ function initMap(){
     {position:'topleft',collapsed:true}
   ).addTo(map);
   layer=L.layerGroup().addTo(map); refreshMarkers();
+  map.on('movestart',hideSug);
   const v=visible(); if(v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.1));
   map.on('locationfound',e=>{
     if(!userMarker){
@@ -584,6 +592,7 @@ function wirePopup(n,s,m){
   };
 }
 function mapSet(){
+  if(mapStreet) return STOPS.filter(s=>s.s===mapStreet);
   if(mapQuery){ const t=mapQuery.toLowerCase(); return STOPS.filter(s=>s._q.includes(t)); }
   return visible();
 }
@@ -698,10 +707,28 @@ function switchView(v){
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchView(t.dataset.view)));
 document.getElementById('locatebtn').addEventListener('click',locateMe);
+const STREETS=[...new Set(STOPS.map(s=>s.s))].sort();
+const mapqEl=document.getElementById('mapq');
 let mqT;
-document.getElementById('mapq').addEventListener('input',e=>{ clearTimeout(mqT); mqT=setTimeout(()=>{ mapQuery=e.target.value.trim(); applyMapSearch(); },200); });
-document.getElementById('mapqx').addEventListener('click',()=>{ const i=document.getElementById('mapq'); i.value=''; mapQuery=''; applyMapSearch(); i.focus(); });
-function applyMapSearch(){ if(!map) return; refreshMarkers(); const v=mapSet(); if(mapQuery && v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.2)); if(mapQuery) showToast(v.length+' door'+(v.length===1?'':'s')+' found'); }
+mapqEl.addEventListener('input',e=>{ const v=e.target.value.trim(); mapStreet=''; mapQuery=v; showSug(v);
+  clearTimeout(mqT); mqT=setTimeout(()=>applyMapSearch(false),180); });
+mapqEl.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const first=document.querySelector('#mapsug button'); if(first){ first.click(); } else { applyMapSearch(true); } mapqEl.blur(); } });
+document.getElementById('mapqx').addEventListener('click',()=>{ mapqEl.value=''; mapQuery=''; mapStreet=''; hideSug(); applyMapSearch(false); mapqEl.focus(); });
+function showSug(v){
+  const s=document.getElementById('mapsug'); if(!v){ hideSug(); return; }
+  const t=v.toLowerCase();
+  const matches=STREETS.filter(x=>x.toLowerCase().includes(t)).slice(0,8);
+  if(!matches.length){ hideSug(); return; }
+  s.innerHTML=matches.map(x=>{const c=STOPS.filter(d=>d.s===x).length;
+    return `<button data-st="${x.replace(/"/g,'&quot;')}">${x}<span class="cnt">${c} door${c===1?'':'s'}</span></button>`;}).join('');
+  s.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>pickStreet(b.dataset.st)));
+  s.classList.add('show');
+}
+function hideSug(){ const s=document.getElementById('mapsug'); if(s){ s.classList.remove('show'); s.innerHTML=''; } }
+function pickStreet(st){ mapStreet=st; mapQuery=''; mapqEl.value=st; hideSug(); applyMapSearch(true);
+  const v=mapSet(); showToast(v.length+' door'+(v.length===1?'':'s')+' on '+st); }
+function applyMapSearch(zoom){ if(!map) return; refreshMarkers(); const v=mapSet();
+  if(zoom && v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.25)); }
 document.getElementById('refreshbtn').addEventListener('click',async()=>{
   const b=document.getElementById('refreshbtn'); b.classList.add('spin');
   await pull(true);
