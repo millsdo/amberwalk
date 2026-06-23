@@ -717,7 +717,9 @@ document.getElementById('mapqx').addEventListener('click',()=>{ mapqEl.value='';
 function showSug(v){
   const s=document.getElementById('mapsug'); if(!v){ hideSug(); return; }
   const t=v.toLowerCase();
-  const matches=STREETS.filter(x=>x.toLowerCase().includes(t)).slice(0,8);
+  const pre=[],mid=[];
+  for(const x of STREETS){ const lx=x.toLowerCase(); if(lx.startsWith(t))pre.push(x); else if(lx.includes(t))mid.push(x); }
+  const matches=pre.concat(mid).slice(0,8);
   if(!matches.length){ hideSug(); return; }
   s.innerHTML=matches.map(x=>{const c=STOPS.filter(d=>d.s===x).length;
     return `<button data-st="${x.replace(/"/g,'&quot;')}">${x}<span class="cnt">${c} door${c===1?'':'s'}</span></button>`;}).join('');
