@@ -208,7 +208,7 @@
 <body>
 <header>
   <div class="htop">
-    <div class="brand"><small>Live canvass · west → east · JUN22-CTRL</small>AmberWalk</div>
+    <div class="brand"><small>Live canvass · west → east · JUN22-KEY</small>AmberWalk</div>
     <div class="me"><button id="refreshbtn" class="refb" title="Refresh">↻</button><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
   </div>
   <div class="progwrap"><div class="progbar" id="prog"></div></div>
@@ -550,6 +550,8 @@ function initMap(){
   ).addTo(map);
   layer=L.layerGroup().addTo(map); refreshMarkers();
   map.on('movestart',hideSug);
+  map.on('popupopen',()=>{ const l=document.querySelector('.leg'); if(l) l.style.visibility='hidden'; });
+  map.on('popupclose',()=>{ const l=document.querySelector('.leg'); if(l) l.style.visibility='visible'; });
   const v=visible(); if(v.length) map.fitBounds(L.latLngBounds(v.map(s=>[s.lat,s.lon])).pad(.1));
   map.on('locationfound',e=>{
     if(!userMarker){
