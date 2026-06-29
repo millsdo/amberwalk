@@ -208,7 +208,7 @@
 <body>
 <header>
   <div class="htop">
-    <div class="brand"><small>Live canvass · west → east · JUN28-OPTS</small>AmberWalk</div>
+    <div class="brand"><small>Live canvass · west → east · JUN28-KEY</small>AmberWalk</div>
     <div class="me"><button id="refreshbtn" class="refb" title="Refresh">↻</button><span class="dot" id="netdot"></span><span id="mename">—</span><button id="changeme">change</button></div>
   </div>
   <div class="progwrap"><div class="progbar" id="prog"></div></div>
@@ -243,12 +243,12 @@
     <div class="maptools"><button class="mbtn" id="locatebtn">◎ Locate me</button></div>
     <div class="leg">
       <div><i style="background:#9aa6ad"></i>Not knocked</div>
-      <div><i style="background:var(--pos)"></i>Positive</div>
-      <div><i style="background:var(--neg)"></i>Negative</div>
-      <div><i style="background:var(--gold)"></i>Left card</div>
-      <div><i style="background:var(--nosol)"></i>No solicit</div>
+      <div><i style="background:#157F3B"></i>Positive</div>
+      <div><i style="background:#C23B2B"></i>Negative</div>
+      <div><i style="background:#BE810C"></i>Left literature</div>
       <div><i style="background:#1F6FEB"></i>Left sign</div>
-      <div><i style="background:#7A4FB0"></i>Left literature</div>
+      <div><i style="background:#F2C200"></i>Leatherwood sign</div>
+      <div><i style="background:#48586A"></i>No solicit</div>
     </div>
   </div>
   <div id="dash"></div>
@@ -278,7 +278,7 @@ const STOPS=JSON.parse(document.getElementById('data').textContent);
 const CHUNKS=JSON.parse(document.getElementById('chunks').textContent);
 const LBL={pos:'Contacted · Positive',neg:'Contacted · Negative',card:'Left Literature',nosol:'No Solicitation',sign:'Left Sign',lw:'Leatherwood Sign',lit:'Left Literature'};
 const SHORT={pos:'Positive',neg:'Negative',card:'Literature',nosol:'No solicit',sign:'Sign',lw:'Leatherwood',lit:'Literature'};
-const MCOLOR={pos:'#157F3B',neg:'#C23B2B',card:'#BE810C',nosol:'#48586A',sign:'#1F6FEB',lw:'#7A4FB0',lit:'#7A4FB0',none:'#9aa6ad'};
+const MCOLOR={pos:'#157F3B',neg:'#C23B2B',card:'#BE810C',nosol:'#48586A',sign:'#1F6FEB',lw:'#F2C200',lit:'#7A4FB0',none:'#9aa6ad'};
 const ORDER=['pos','neg','card','sign','lw','nosol'];
 function canon(arr){ return ORDER.filter(k=>arr.includes(k)); }
 function primaryOf(arr){ for(const k of ORDER) if(arr.includes(k)) return k; return ''; }
@@ -432,7 +432,7 @@ function makeRow(s){
 }
 function paintAct(b,k,sel){
   const dot=b.querySelector('.d');
-  if(sel){ b.classList.add('sel'); b.style.background=MCOLOR[k]; b.style.borderColor=MCOLOR[k]; b.style.color='#fff'; if(dot)dot.style.background='#fff'; }
+  if(sel){ b.classList.add('sel'); b.style.background=MCOLOR[k]; b.style.borderColor=MCOLOR[k]; b.style.color=(k==='lw')?'#3a2e00':'#fff'; if(dot)dot.style.background=(k==='lw')?'#3a2e00':'#fff'; }
   else { b.classList.remove('sel'); b.style.background=''; b.style.borderColor=''; b.style.color=''; if(dot)dot.style.background=MCOLOR[k]; }
 }
 function buildDetail(el,s){
@@ -588,7 +588,7 @@ function popupHtml(s){
     <div class="lpbtns"><button class="popbtn nav" data-nav>Navigate</button><button class="popbtn open" data-confirm>Confirm</button></div>
     <button class="lpopen" data-open>Open in list</button></div>`;
 }
-function paintPk(b,k,sel){ if(sel){b.classList.add('sel');b.style.background=MCOLOR[k];b.style.borderColor=MCOLOR[k];b.style.color='#fff';} else {b.classList.remove('sel');b.style.background='';b.style.borderColor='';b.style.color='';} }
+function paintPk(b,k,sel){ if(sel){b.classList.add('sel');b.style.background=MCOLOR[k];b.style.borderColor=MCOLOR[k];b.style.color=(k==='lw')?'#3a2e00':'#fff';} else {b.classList.remove('sel');b.style.background='';b.style.borderColor='';b.style.color='';} }
 function wirePopup(n,s,m){
   if(!n) return;
   const r=state[s.id]; if(!n._sel) n._sel=new Set((r&&r.st)?r.st.split(','):[]);
